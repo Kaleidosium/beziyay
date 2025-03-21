@@ -4,7 +4,7 @@
     "typecheck": "deno check **/*.ts",
     "lint": "deno lint ./",
     "format": "deno fmt ./",
-    "test": "deno run -A --node-modules-dir npm:vitest@3",
+    "test": "deno run -A --node-modules-dir npm:vitest",
     "prepublish": "deno task test && deno task lint && deno task typecheck"
   },
   "compilerOptions": {
