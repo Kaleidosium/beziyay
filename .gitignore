@@ -3,6 +3,7 @@
 
 node_modules/
 __snapshots__/
+dist/
 
 .DS_Store
 .env
