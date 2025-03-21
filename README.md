@@ -1,2 +1,3 @@
 # beziyay
-line smoothing via efficient curve fitting
+
+Line Smoothing via Efficient Bézier Curve Fitting.
