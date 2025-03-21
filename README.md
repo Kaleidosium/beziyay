@@ -1,3 +1,3 @@
 # beziyay
 
-Line Smoothing via Efficient Bézier Curve Fitting.
+Implementation of Frisken's Algorithm for Efficient Bézier Curve Fitting.
