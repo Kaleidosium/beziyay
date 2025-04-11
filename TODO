@@ -1,7 +1,6 @@
 TODO:
 
-- Rewrite to Idiomatic TypeScript
-- Use Maps instead of Objects
+- ~~Rewrite to Idiomatic TypeScript~~
 - Implement some suggestions from Reviewer
 - Review Pseudocode and cross-check with implementation
-- Add Tolerance setting
+- Add configuration settings rather than hardcoding constants (e.g. tolerance)
