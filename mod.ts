@@ -162,51 +162,6 @@ export class Curve {
     return updatedSegment;
   }
 
-  // --- Private Helper for Core Update Logic (Called by addToCurve) ---
-  #internalCurveUpdateLogic(roundedCoord: Coord): CurveSegment | undefined {
-    let segmentToUpdate = this.#getLastSegment();
-
-    if (!segmentToUpdate) return undefined;
-
-    // Handle cases where the *existing* last segment had a failed status *before* adding the new point
-    if (
-      segmentToUpdate.update_status &&
-      segmentToUpdate.update_status !== UpdateStatus.SUCCESS
-    ) {
-      let newSegment: CurveSegment | undefined;
-      const lastCurvePoint = this.#getLastPoint(segmentToUpdate);
-
-      if (segmentToUpdate.update_status === UpdateStatus.FAIL_CORNER) {
-        newSegment = this.#initCurveSegment(lastCurvePoint.x, lastCurvePoint.y);
-      } else if (segmentToUpdate.update_status === UpdateStatus.FAIL_MAXED) {
-        newSegment = this.#initCurveSegment(lastCurvePoint.x, lastCurvePoint.y);
-        // Apply constraint from the previous segment's end tangent
-        const prevTangent = getCurveEndTangent(segmentToUpdate);
-        if (magnitudeVec(prevTangent) > 0) { // Avoid normalizing zero vector
-          newSegment.constrain_to = getUnitVector(prevTangent);
-        }
-      }
-
-      if (newSegment) {
-        this.#vdmap = []; // Reset VDMap only when a new segment is truly added due to failure
-        this.#segments.push(newSegment);
-        segmentToUpdate = newSegment; // Target the newly added segment for the upcoming update
-      } else {
-        // If status was non-SUCCESS but didn't match FAIL_CORNER or FAIL_MAXED,
-        // we might just proceed with the current segment or log an error.
-        // For now, proceed with the current last segment.
-        console.warn(
-          "Unhandled update status before adding point:",
-          segmentToUpdate.update_status,
-        );
-      }
-    }
-
-    // Update the distance field and fit the curve for the *targeted* segment (either old last or new)
-    // Pass the segment explicitly to updateDistanceField
-    return this.#updateDistanceField(segmentToUpdate, roundedCoord);
-  }
-
   // --- Private Distance Field Update (Needs segment passed explicitly) ---
   #updateDistanceField(
     segment: CurveSegment,
