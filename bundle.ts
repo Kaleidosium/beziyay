@@ -1,5 +1,5 @@
 import * as esbuild from "esbuild";
-import { denoPlugins } from "esbuild-deno-loader";
+import { denoPlugins } from "@luca/esbuild-deno-loader";
 
 await esbuild.build({
   plugins: [...denoPlugins()],

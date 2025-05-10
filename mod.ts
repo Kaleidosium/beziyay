@@ -394,7 +394,7 @@ export class Curve {
     if (this.vdmap[x]) {
       const first = this.vdmap[x][y];
       const second = this.vdmap[x][y + 1];
-      let val = first !== undefined
+      const val = first !== undefined
         ? { x: first.x, y: first.y }
         : { x: this.FIELD_RADIUS, y: this.FIELD_RADIUS };
 
