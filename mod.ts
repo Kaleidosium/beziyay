@@ -415,8 +415,8 @@ export class Curve {
   }
 
   private getCurveEndTangent(curve: CurveSegment): Coord {
-    const endpoint = curve.c3;
-    const controlPoint = curve.c2;
+    const controlPoint = curve.c3;
+    const endpoint = curve.c2;
     return {
       x: 3 * (controlPoint.x - endpoint.x),
       y: 3 * (controlPoint.y - endpoint.y),
