@@ -8,7 +8,13 @@
     "prepublish": "deno task test && deno task lint && deno task typecheck"
   },
   "compilerOptions": {
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": [
+      "es2022",
+      "dom",
+      "dom.iterable",
+      "deno.ns"
+    ],
+    "strict": true,
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true
   },
