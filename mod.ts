@@ -398,7 +398,7 @@ export class Curve {
     const first = column[y];
     const second = column[y + 1];
 
-    let val = first
+    const val = first
       ? { ...first }
       : { x: Curve.FIELD_RADIUS, y: Curve.FIELD_RADIUS };
 
