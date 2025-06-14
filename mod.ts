@@ -62,22 +62,52 @@ type UpdateStatus = typeof UpdateStatus[keyof typeof UpdateStatus];
  * fitted to a polyline.
  */
 export class Curve {
-  private static readonly MAX_ERROR = 2; // Max allowed fitting error
-  private static readonly FIELD_RADIUS = 9; // Distance field radius
-  private static readonly NUM_SAMPLE_POINTS = 9; // Number of samples along curve
-  private static readonly MAX_ITERATIONS = 50; // Max fitting iterations
-  private static readonly MAX_CORNER_ANGLE = 80; // Max angle for smooth join
-  private static readonly RADIAL_SIMPLIFICATION = 1; // Min distance between points
-  private static readonly SHOULD_USE_NEW_CORNER_FINDER = true; // Use improved corner detection
-  private static readonly SHOULD_USE_MY_FORCE_VECTORS = true; // Use improved force vectors
+  private readonly MAX_ERROR: number; // Max allowed fitting error
+  private readonly FIELD_RADIUS: number; // Distance field radius for error computation
+  private readonly NUM_SAMPLE_POINTS: number; // Number of samples along curve for fitting
+  private readonly MAX_ITERATIONS: number; // Max fitting iterations per segment
+  private readonly MAX_CORNER_ANGLE: number; // Max angle (degrees) for smooth join before treating as a corner
+  private readonly RADIAL_SIMPLIFICATION: number; // Min distance between points to add to curve
+  private readonly SHOULD_USE_NEW_CORNER_FINDER: boolean; // Use improved corner detection
+  private readonly SHOULD_USE_MY_FORCE_VECTORS: boolean; // Use improved force vectors for fitting
 
   private curveData: CurveData;
 
   /**
-   * Initialize a new curve with a starting coordinate.
+   * Initialize a new curve with a starting coordinate and optional parameters.
    * @param {Coord} startCoord - The starting coordinate of the curve.
+   * @param {object} [options] - Optional curve fitting parameters.
+   * @param {number} [options.MAX_ERROR] - Max allowed fitting error (default: 2).
+   * @param {number} [options.FIELD_RADIUS] - Distance field radius for error computation (default: 9).
+   * @param {number} [options.NUM_SAMPLE_POINTS] - Number of samples along curve for fitting (default: 9).
+   * @param {number} [options.MAX_ITERATIONS] - Max fitting iterations per segment (default: 50).
+   * @param {number} [options.MAX_CORNER_ANGLE] - Max angle (in degrees) for smooth join before treating as a corner (default: 80).
+   * @param {number} [options.RADIAL_SIMPLIFICATION] - Min distance between points to add to curve (default: 1).
+   * @param {boolean} [options.SHOULD_USE_NEW_CORNER_FINDER] - Use improved corner detection (default: true).
+   * @param {boolean} [options.SHOULD_USE_MY_FORCE_VECTORS] - Use improved force vectors for fitting (default: true).
    */
-  constructor(startCoord: Coord) {
+  constructor(
+    startCoord: Coord,
+    options?: {
+      MAX_ERROR?: number;
+      FIELD_RADIUS?: number;
+      NUM_SAMPLE_POINTS?: number;
+      MAX_ITERATIONS?: number;
+      MAX_CORNER_ANGLE?: number;
+      RADIAL_SIMPLIFICATION?: number;
+      SHOULD_USE_NEW_CORNER_FINDER?: boolean;
+      SHOULD_USE_MY_FORCE_VECTORS?: boolean;
+    }
+  ) {
+    this.MAX_ERROR = options?.MAX_ERROR ?? 2;
+    this.FIELD_RADIUS = options?.FIELD_RADIUS ?? 9;
+    this.NUM_SAMPLE_POINTS = options?.NUM_SAMPLE_POINTS ?? 9;
+    this.MAX_ITERATIONS = options?.MAX_ITERATIONS ?? 50;
+    this.MAX_CORNER_ANGLE = options?.MAX_CORNER_ANGLE ?? 80;
+    this.RADIAL_SIMPLIFICATION = options?.RADIAL_SIMPLIFICATION ?? 1;
+    this.SHOULD_USE_NEW_CORNER_FINDER = options?.SHOULD_USE_NEW_CORNER_FINDER ?? true;
+    this.SHOULD_USE_MY_FORCE_VECTORS = options?.SHOULD_USE_MY_FORCE_VECTORS ?? true;
+
     this.curveData = {
       segments: [this.createInitialSegment(this.roundVec(startCoord))],
       vdmap: [],
@@ -162,7 +192,7 @@ export class Curve {
     const lastPoint = this.getLastPoint(lastSegment);
 
     // Skip if points are too close together (radial simplification)
-    if (this.getMagnitude(newPoint, lastPoint) < Curve.RADIAL_SIMPLIFICATION) {
+    if (this.getMagnitude(newPoint, lastPoint) < this.RADIAL_SIMPLIFICATION) {
       return lastSegment;
     }
 
@@ -230,8 +260,8 @@ export class Curve {
       let f2 = { x: 0, y: 0 };
 
       // --- Create force vectors by sampling the curve and measuring error ---
-      for (let i = 0; i < Curve.NUM_SAMPLE_POINTS; i++) {
-        const t = i / Curve.NUM_SAMPLE_POINTS;
+      for (let i = 0; i < this.NUM_SAMPLE_POINTS; i++) {
+        const t = i / this.NUM_SAMPLE_POINTS;
         const point = this.roundVec(this.getPointAlongCurve(segment, t));
         const dist = this.getDistanceFromPolyline(point);
         const d = this.magnitudeVec(dist);
@@ -239,7 +269,7 @@ export class Curve {
 
         // Heavily weight the ends to avoid "hooking"
         let modifier = 1;
-        if (Curve.SHOULD_USE_MY_FORCE_VECTORS && (t < 0.1 || t > 0.9)) {
+        if (this.SHOULD_USE_MY_FORCE_VECTORS && (t < 0.1 || t > 0.9)) {
           modifier = 10;
         }
 
@@ -251,7 +281,7 @@ export class Curve {
       }
 
       // --- Mitigate "hooking" by nudging force vectors toward the midpoint ---
-      if (Curve.SHOULD_USE_MY_FORCE_VECTORS) {
+      if (this.SHOULD_USE_MY_FORCE_VECTORS) {
         const midpoint = this.getSegmentMidpoint(segment);
         const fromEnd = this.subVec(midpoint, segment.c2);
         const fromBeginning = this.subVec(midpoint, segment.c1);
@@ -269,7 +299,7 @@ export class Curve {
 
       // --- Apply force vectors to control points ---
       const alpha = 1;
-      const scaleFactor = (alpha * 6) / Curve.NUM_SAMPLE_POINTS;
+      const scaleFactor = (alpha * 6) / this.NUM_SAMPLE_POINTS;
       segment.c1.x -= f1.x * scaleFactor;
       segment.c1.y -= f1.y * scaleFactor;
       segment.c2.x -= f2.x * scaleFactor;
@@ -277,26 +307,26 @@ export class Curve {
 
       // --- Compute fitting error ---
       let error = 0;
-      for (let i = 0; i < Curve.NUM_SAMPLE_POINTS; i++) {
-        const t = i / Curve.NUM_SAMPLE_POINTS;
+      for (let i = 0; i < this.NUM_SAMPLE_POINTS; i++) {
+        const t = i / this.NUM_SAMPLE_POINTS;
         const point = this.getPointAlongCurve(segment, t);
         const dist = this.getDistanceFromPolyline(this.roundVec(point));
         error += dist.x ** 2 + dist.y ** 2;
       }
-      error /= Curve.NUM_SAMPLE_POINTS;
+      error /= this.NUM_SAMPLE_POINTS;
       steps++;
 
       segment.error = error;
       segment.steps = steps;
 
       // --- Stop if error is low enough or we've iterated too much ---
-      if (error < Curve.MAX_ERROR || steps > Curve.MAX_ITERATIONS) {
+      if (error < this.MAX_ERROR || steps > this.MAX_ITERATIONS) {
         break;
       }
     }
 
     // --- If fitting failed, roll back to original controls ---
-    if (steps > Curve.MAX_ITERATIONS) {
+    if (steps > this.MAX_ITERATIONS) {
       Object.assign(segment, originalControls);
       segment.updateStatus = UpdateStatus.FAIL_MAXED;
       return segment;
@@ -351,12 +381,12 @@ export class Curve {
    */
   private renderEndCap(currentPoint: Coord): void {
     const upperLeft = this.subVec(currentPoint, {
-      x: Curve.FIELD_RADIUS,
-      y: Curve.FIELD_RADIUS,
+      x: this.FIELD_RADIUS,
+      y: this.FIELD_RADIUS,
     });
     const bottomRight = this.addVec(currentPoint, {
-      x: Curve.FIELD_RADIUS,
-      y: Curve.FIELD_RADIUS,
+      x: this.FIELD_RADIUS,
+      y: this.FIELD_RADIUS,
     });
 
     for (let x = upperLeft.x; x < bottomRight.x; x++) {
@@ -392,7 +422,7 @@ export class Curve {
   private getDistanceFromPolyline({ x, y }: Coord): Coord {
     const column = this.curveData.vdmap[x];
     if (!column) {
-      return { x: Curve.FIELD_RADIUS, y: Curve.FIELD_RADIUS };
+      return { x: this.FIELD_RADIUS, y: this.FIELD_RADIUS };
     }
 
     const first = column[y];
@@ -400,7 +430,7 @@ export class Curve {
 
     const val = first
       ? { ...first }
-      : { x: Curve.FIELD_RADIUS, y: Curve.FIELD_RADIUS };
+      : { x: this.FIELD_RADIUS, y: this.FIELD_RADIUS };
 
     if (second?.x !== undefined && Math.abs(val.x) > Math.abs(second.x)) {
       val.x = second.x;
@@ -433,7 +463,7 @@ export class Curve {
     }
 
     let tan: Coord;
-    if (Curve.SHOULD_USE_NEW_CORNER_FINDER) {
+    if (this.SHOULD_USE_NEW_CORNER_FINDER) {
       // Use the tangent at t=0.95 for better accuracy
       tan = this.getUnitVector(
         this.subVec(
@@ -456,7 +486,7 @@ export class Curve {
     const angle = this.radiansToDegrees(Math.acos(dot));
 
     // If angle is too sharp, treat as a corner
-    return angle < Curve.MAX_CORNER_ANGLE;
+    return angle < this.MAX_CORNER_ANGLE;
   }
 
   // --- Vector utility methods ---
@@ -476,8 +506,8 @@ export class Curve {
    */
   private getScaledVectorDifference(uvec: Coord): Coord {
     return {
-      x: uvec.x * Curve.FIELD_RADIUS,
-      y: uvec.y * Curve.FIELD_RADIUS,
+      x: uvec.x * this.FIELD_RADIUS,
+      y: uvec.y * this.FIELD_RADIUS,
     };
   }
 
